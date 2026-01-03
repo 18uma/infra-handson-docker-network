@@ -119,16 +119,37 @@ docker compose logs -f backend
 以下の質問に答えられるか確認してください：
 
 1. **各コンテナの役割は何ですか？**
-   - Frontend: 
-   - Backend: 
-   - Database: 
+
+<details>
+<summary>解答を見る</summary>
+
+- **Frontend**: ユーザーインターフェース、ブラウザでタスク管理画面を表示
+- **Backend**: REST API、タスクのCRUD処理とビジネスロジック
+- **Database**: データの永続化、PostgreSQLでタスクデータを保存
+
+</details>
 
 2. **外部からアクセスできるポートはどれですか？**
-   - Frontend: 
-   - Backend: 
-   - Database: 
+
+<details>
+<summary>解答を見る</summary>
+
+- **Frontend**: 3000番ポート（ブラウザからアクセス可能）
+- **Backend**: 8000番ポート（APIエンドポイント）
+- **Database**: 5432番ポート（外部公開されていない）
+
+</details>
 
 3. **コンテナ同士はどのように通信していますか？**
+
+<details>
+<summary>解答を見る</summary>
+
+- **同一Dockerネットワーク**（app-network）内で通信
+- **サービス名**で名前解決（frontend → backend、backend → database）
+- **内部ポート**を使用（外部公開ポートではない）
+
+</details>
 
 ---
 
