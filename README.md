@@ -1,206 +1,208 @@
-# ネットワーク基礎ハンズオン 設計書（第二弾・詳細化 v3）
+# Step0: 環境確認・基本動作
+
+## 🎯 学習目標
+
+- Docker Composeの基本操作を確認する
+- タスク管理アプリの動作を体験する
+- 各コンテナの役割を理解する
+- 正常な通信状態を確認する
+
+**所要時間: 約20分**
 
 ---
 
-## 1. 本教材の位置づけ
+## 📋 このステップで学ぶこと
 
-（※ ここは前版と同じため省略可）
-
----
-
-## 2. 成功の定義
-
-（※ 前版と同じ）
-
----
-
-## 3. ブランチ戦略設計（教材としての重要ポイント）
-
-### 3.1 ブランチ構成
-
+### 1. システム構成の理解
 ```
-main
-├─ step0-base
-├─ step1-port
-├─ step2-viewpoint
-├─ step3-network-isolation
-├─ step4-dns
-└─ step5-final-exercise
+Frontend (React)  ←→  Backend (Node.js)  ←→  Database (PostgreSQL)
+     :3000              :8000                   :5432
 ```
 
-### 3.2 各ブランチの役割
-
-| ブランチ    | 役割               |
-| ------- | ---------------- |
-| main    | 完成形（講師・答え確認用）    |
-| stepX-* | 各ステップの「課題スタート地点」 |
+### 2. Docker Composeの基本操作
+- コンテナの起動・停止
+- ログの確認方法
+- 基本的なトラブルシューティング
 
 ---
 
-### 3.3 ブランチ戦略の思想
+## 🚀 実習手順
 
-* **1ブランチ = 1課題**
-* 各ブランチは「壊れた状態」から始まる
-* 修正内容は1〜2点に限定
-* 正解は1つに限定しない
+### 1. 環境の掃除（重要）
+```bash
+# 既存のコンテナ・ネットワーク・ボリュームを削除
+docker compose down -v --remove-orphans
 
-👉 受講者は
-「このブランチを checkout すれば、その課題が始まる」
-という分かりやすい導線を得られる。
-
----
-
-### 3.4 なぜブランチで分けるのか
-
-* ZIP配布でも成立する
-* 途中で詰まっても別ブランチに進める
-* Git操作は最小限（checkoutのみ）
-
-👉 **Gitの学習教材ではないため、Git操作の負荷を最小化する**
-
----
-
-## 4. Step3：Dockerネットワーク分離（最重要）詳細設計
-
----
-
-### 4.1 Step3の学習ゴール（再定義）
-
-受講者は以下を説明できるようになる。
-
-* なぜ同じホスト上のコンテナ同士が通信できないのか
-* Dockerネットワークが「見えない境界」として機能している理由
-* どうすれば通信できるようになるのか（設計の言葉で）
-
----
-
-### 4.2 Step3の初期状態（課題ブランチ）
-
-ブランチ名：
-
-```
-step3-network-isolation
+# 未使用リソースの削除
+docker system prune -f
 ```
 
----
+### 2. アプリケーションの起動
+```bash
+# バックグラウンドで起動
+docker compose up -d
 
-### 4.3 提供される構成（あえて壊れている）
-
-#### docker-compose.yml（イメージ）
-
-* frontend（React）
-* backend（Node.js API）
-* network-a
-* network-b
-
-```
-frontend ── network-a
-backend  ── network-b
+# 起動状況の確認
+docker compose ps
 ```
 
-👉 **frontend → backend は通信できない**
+**期待する結果:**
+```
+NAME                     IMAGE                        COMMAND                  SERVICE    CREATED         STATUS         PORTS
+infra-handson-backend    infra-handson-backend        "docker-entrypoint.s…"  backend    2 minutes ago   Up 2 minutes   0.0.0.0:8000->8000/tcp
+infra-handson-database   postgres:15                  "docker-entrypoint.s…"  database   2 minutes ago   Up 2 minutes   5432/tcp
+infra-handson-frontend   infra-handson-frontend       "docker-entrypoint.s…"  frontend   2 minutes ago   Up 2 minutes   0.0.0.0:3000->3000/tcp
+```
+
+### 3. 動作確認
+
+#### 3-1. バックエンドAPI確認
+```bash
+# ヘルスチェック
+curl http://localhost:8000/health
+
+# タスク一覧取得
+curl http://localhost:8000/tasks
+```
+
+**期待する結果:**
+```json
+{"status":"OK","message":"Task API is running"}
+
+[
+  {"id":1,"title":"Docker Composeの学習","created_at":"2024-01-01T00:00:00.000Z"},
+  {"id":2,"title":"ネットワーク設定の確認","created_at":"2024-01-01T00:00:00.000Z"},
+  {"id":3,"title":"APIの動作テスト","created_at":"2024-01-01T00:00:00.000Z"}
+]
+```
+
+#### 3-2. フロントエンド確認
+```bash
+# ブラウザでアクセス
+open http://localhost:3000
+```
+
+**期待する動作:**
+- タスク一覧が表示される
+- 新しいタスクを追加できる
+- エラーが表示されない
+
+### 4. ログの確認方法
+```bash
+# 全サービスのログ
+docker compose logs
+
+# 特定サービスのログ
+docker compose logs backend
+docker compose logs frontend
+docker compose logs database
+
+# リアルタイムでログを監視
+docker compose logs -f backend
+```
 
 ---
 
-### 4.4 受講者が最初に体験すること
+## 🔍 確認ポイント
 
-1. `docker compose up`
-2. フロントエンドにアクセス
-3. API通信が失敗する（例：fetch error）
+### ✅ チェックリスト
 
----
+- [ ] 3つのコンテナが全て起動している
+- [ ] `curl http://localhost:8000/health` が成功する
+- [ ] `curl http://localhost:8000/tasks` でタスク一覧が取得できる
+- [ ] ブラウザで http://localhost:3000 にアクセスできる
+- [ ] フロントエンドでタスク一覧が表示される
+- [ ] 新しいタスクを追加できる
 
-### 4.5 READMEに明示するメッセージ（例）
+### 🤔 理解度チェック
 
-> ❓ コンテナは起動している
-> ❓ ポートも公開している
->
-> それでも通信できません
->
-> **なぜでしょう？**
+以下の質問に答えられるか確認してください：
 
----
+1. **各コンテナの役割は何ですか？**
+   - Frontend: 
+   - Backend: 
+   - Database: 
 
-### 4.6 受講者に考えてほしい観点（誘導）
+2. **外部からアクセスできるポートはどれですか？**
+   - Frontend: 
+   - Backend: 
+   - Database: 
 
-READMEでは以下をヒントとして提示する。
-
-* frontend と backend は
-
-  * 同じネットワークに属しているか？
-* 「同じdocker-compose.ymlに書いてある」＝「同じネットワーク」か？
-* コンテナ同士はどこを経由して通信しているのか？
+3. **コンテナ同士はどのように通信していますか？**
 
 ---
 
-### 4.7 典型的な失敗例（Tipsとして明示）
+## 🛠️ トラブルシューティング
 
-#### ❌ 失敗例1：ポートを増やせば繋がると思う
+### よくある問題と解決方法
 
-* ports を追加
-* 状況が変わらない
+#### 問題1: ポートが使用中
+```
+Error: bind: address already in use
+```
+**解決方法:**
+```bash
+# 使用中のプロセスを確認
+lsof -i :3000
+lsof -i :8000
 
-👉 ポートは **外部公開用** であり
-コンテナ間通信の問題ではない。
+# 既存のコンテナを停止
+docker compose down
+```
 
----
+#### 問題2: イメージビルドエラー
+```bash
+# キャッシュを使わずに再ビルド
+docker compose build --no-cache
 
-#### ❌ 失敗例2：localhost を指定する
+# 個別にビルド
+docker compose build frontend
+docker compose build backend
+```
 
-👉 localhost は
-**自分自身（そのコンテナ）** を指す。
+#### 問題3: データベース接続エラー
+```bash
+# バックエンドのログを確認
+docker compose logs backend
 
----
-
-### 4.8 正解の方向性（答えは1つではない）
-
-READMEでは以下レベルまで示す。
-
-* frontend と backend を
-
-  * 同一ネットワークに参加させる
-* ネットワーク境界を越えた通信はできない
-
-※ 具体的なYAMLの書き方は main ブランチで確認可能
-
----
-
-### 4.9 Step3で身につく「実務に直結する感覚」
-
-* ネットワークは明示的に設計されるもの
-* 「動かない」は設定の結果
-* 境界を越えるには理由と設計が必要
-
----
-
-## 5. Step3終了時点での到達イメージ
-
-受講者の発言イメージ：
-
-> 「frontend と backend が別ネットワークなので
-> 名前解決もできず、通信できていません。
-> 同じネットワークに参加させる必要があります。」
-
-👉 **この一言が言えれば、Step3は成功**
+# データベースの起動を待つ
+docker compose up database
+# 別ターミナルで
+docker compose up backend frontend
+```
 
 ---
 
-## 6. 次ステップへの布石
+## 🎓 Step0で身につけたこと
 
-* Step4：
-  「じゃあ、なぜサービス名で通信できるの？」
-* Step5：
-  「複数要因が絡むと、どう切り分ける？」
+- Docker Composeの基本操作
+- 正常な状態でのアプリケーション動作
+- 各コンテナの役割と責任
+- 基本的なトラブルシューティング手法
+
+---
+
+## 📚 次のステップへ
+
+Step0が完了したら、次のステップに進みましょう：
+
+```bash
+# 環境の掃除
+docker compose down -v --remove-orphans
+
+# 次のステップへ
+git checkout step1-port
+```
+
+**Step1では「ポート公開」について学習します。**
+外部アクセスとコンテナ間通信の違いを理解していきましょう！
 
 ---
 
-## 7. この教材の“肝”再確認
+## 💡 実務への応用
 
-* Dockerネットワークは
-  **見えないが、確実に存在する**
-* 通信トラブルの多くは
-  **設計を見れば説明できる**
-* 本教材は
-  **操作ではなく、理解を教える**
+Step0で学んだことは実務でこのように活用できます：
 
----
+- **開発環境の構築**: Docker Composeで一貫した環境を提供
+- **動作確認の手順化**: ヘルスチェックとログ確認の標準化
+- **トラブルシューティング**: 問題の切り分けと解決手順の確立
