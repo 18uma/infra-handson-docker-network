@@ -132,17 +132,20 @@
 1. ブラウザ → Frontend (✅ 成功)
    http://localhost:3000
 
-2. Frontend → Backend (❌ 失敗)
-   fetch('http://backend:8000/tasks')
+2. ブラウザ → Backend (✅ 成功)
+   http://localhost:8000/health
+   
+   理由: ホスト経由でのアクセスは可能
+   
+3. Frontend → Backend (❌ 失敗)
+   コンテナ間通信: frontend → backend
    
    理由: Frontendコンテナは frontend-network に属し、
         Backendコンテナは backend-network に属するため、
         名前解決できず通信不可
         
-3. ブラウザ → Backend (✅ 成功)
-   http://localhost:8000/health
-   
-   理由: ホスト経由でのアクセスは可能
+   ※ ただし、フロントエンドアプリ自体はブラウザで動作するため、
+     実際のAPI通信はブラウザ → Backend (localhost:8000) となり成功する
 ```
 
 **重要な気づき：**
@@ -217,7 +220,11 @@ open http://localhost:3000
 
 **期待する結果:**
 - ✅ フロントエンド画面は表示される
-- ❌ しかし、タスク一覧でAPIエラーが表示される
+- ✅ タスク一覧も正常に表示される（ブラウザからlocalhost:8000でAPIアクセスするため）
+
+**💡 重要な気づき:**
+> フロントエンドアプリはブラウザで動作するため、実際のAPI通信はブラウザから直接行われます。
+> ネットワーク分離の影響を体験するには、コンテナ間通信を直接テストする必要があります。
 
 #### 3-2. 直接APIアクセス（成功するはず）
 ```bash
