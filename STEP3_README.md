@@ -380,7 +380,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_API_URL=http://localhost:8000  # ← backend:8000 から変更
     networks:
       - app-network  # ← 変更
     depends_on:
