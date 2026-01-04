@@ -148,7 +148,8 @@
 
 ### 1. 環境の掃除（重要）
 ```bash
-# 既存のコンテナ・ネットワーク・ボリュームを削除
+# 現在のdocker-compose.ymlに関連するリソースのみ削除
+# 他のプロジェクトのコンテナには影響しません
 docker compose down -v --remove-orphans
 ```
 
