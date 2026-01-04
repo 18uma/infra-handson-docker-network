@@ -150,9 +150,6 @@
 ```bash
 # 既存のコンテナ・ネットワーク・ボリュームを削除
 docker compose down -v --remove-orphans
-
-# 未使用リソースの削除
-docker system prune -f
 ```
 
 ### 2. アプリケーションの起動
