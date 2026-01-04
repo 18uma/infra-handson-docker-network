@@ -1,0 +1,600 @@
+# Step3: ネットワーク分離（最重要）
+
+## 🎯 学習目標
+
+**このステップを通じて、あなたはこう説明できるようになります：**
+
+> 「**frontend と backend が別ネットワークなので名前解決もできず、通信できていません。同じネットワークに参加させる必要があります。**」
+
+**所要時間: 約45分**
+
+---
+
+## 📋 今回のテーマ：「見えない境界」の存在を体感する
+
+### 🏢 「ネットワーク境界」のアナロジー
+
+**Network Boundary（ネットワーク境界）** = **見えない壁・仕切り**
+
+オフィスビルのフロア分けで考えてみましょう：
+
+```
+オフィスビルの世界                    Dockerネットワークの世界
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 🏢 同じ建物（ホスト）                 💻 同じホスト                            │
+│                                                                             │
+│ 🚪 3階（frontend-network）           🌐 frontend-network                    │
+│ ┌─────────────────────────────────┐   ┌─────────────────────────────────┐   │
+│ │  👥 営業部（frontend）           │   │  🖥️ Frontend                    │   │
+│ │  • 外線電話あり（ポート公開）     │   │  • ポート3000公開               │   │
+│ │  • 他フロアとは直接話せない       │   │  • 他ネットワークと通信不可     │   │
+│ └─────────────────────────────────┘   └─────────────────────────────────┘   │
+│                                                                             │
+│ 🚪 4階（backend-network）            🌐 backend-network                     │
+│ ┌─────────────────────────────────┐   ┌─────────────────────────────────┐   │
+│ │  💼 開発部（backend）            │   │  ⚙️ Backend                     │   │
+│ │  🗄️ 総務部（database）          │   │  🗃️ Database                   │   │
+│ │  • 外線電話あり（ポート公開）     │   │  • ポート8000公開               │   │
+│ │  • 同フロア内では直接話せる       │   │  • 同ネットワーク内で通信可能   │   │
+│ └─────────────────────────────────┘   └─────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+❌ 3階の営業部 → 4階の開発部（直接通話不可）
+❌ Frontend → Backend（直接通信不可）
+
+✅ 外線経由なら通話可能（ホスト経由）
+✅ ホスト経由ならAPI通信可能
+```
+
+**重要な気づき：**
+- **同じ建物にいても、フロアが違えば直接話せない**
+- **同じホストにいても、ネットワークが違えば直接通信できない**
+
+### 🔍 中心となる問い
+
+> **同じマシン上で動いているのに、なぜ通信できないのか？**
+
+### 💡 実務での価値
+
+- **マイクロサービス設計**（サービス間の通信境界設計）
+- **セキュリティ設計**（ネットワークセグメンテーション）
+- **トラブルシューティング**（通信断の原因特定）
+
+---
+
+## 🤔 なぜこの学習が重要なのか
+
+### 実務でよくある混乱
+
+**場面1: 「同じdocker-compose.ymlなのに...」**
+```
+「同じファイルに書いてあるサービス同士なのに、
+ なぜ通信できないんですか？」
+「設定は間違っていないはずなのに...」
+```
+
+**場面2: 「ローカルでは動くのにk8sで...」**
+```
+「Docker Composeでは動くのに、
+ Kubernetesにデプロイすると通信エラーが出ます」
+「ネットワーク設定の何が違うんでしょうか？」
+```
+
+**場面3: 「セキュリティ要件での分離」**
+```
+「フロントエンドとバックエンドを
+ 異なるネットワークセグメントに配置してください」
+「DMZと内部ネットワークの分離が必要です」
+```
+
+### 多くのエンジニアが誤解すること
+
+❌ **「同じdocker-compose.yml = 同じネットワーク」**
+- 明示的にネットワークを分けることができる
+
+❌ **「同じマシン = 通信可能」**
+- ネットワーク境界により通信が制限される
+
+❌ **「ポートを公開すれば解決」**
+- ネットワーク分離の問題はポート公開だけでは解決しない
+
+✅ **正しい理解**
+- **ネットワークは明示的に設計されるもの**
+- **境界を越えるには理由と設計が必要**
+- **「動かない」は設定の結果**
+
+---
+
+## 🏗️ 今回の構成を理解する
+
+### 現在の状態：ネットワーク分離により通信断
+
+```
+ホスト視点
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           💻 Docker Host                                   │
+│                                                                             │
+│  🌐 frontend-network              🌐 backend-network                       │
+│  ┌─────────────────────┐          ┌─────────────────────────────────────┐   │
+│  │  🖥️ Frontend        │          │  ⚙️ Backend      🗃️ Database      │   │
+│  │     :3000           │    ❌    │     :8000           :5432          │   │
+│  │   ✅ ポート公開      │          │   ✅ ポート公開    ❌ 内部のみ      │   │
+│  └─────────────────────┘          └─────────────────────────────────────┘   │
+│           ↑                                        ↑                       │
+│      ✅ アクセス可能                          ✅ アクセス可能                │
+│    (ブラウザから)                           (ブラウザから)                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 通信の流れと問題点
+
+```
+1. ブラウザ → Frontend (✅ 成功)
+   http://localhost:3000
+
+2. Frontend → Backend (❌ 失敗)
+   fetch('http://localhost:8000/tasks')
+   
+   理由: Frontendコンテナ内から見ると、
+        localhost:8000 は自分自身を指す
+        
+3. ブラウザ → Backend (✅ 成功)
+   http://localhost:8000/health
+   
+   理由: ホスト経由でのアクセスは可能
+```
+
+**重要な気づき：**
+> **ネットワーク境界は「見えない」が「確実に存在する」**
+
+---
+
+## 🚀 実習手順
+
+> **目的**: ネットワーク境界の存在を体感し、「見えない境界」を理解する
+
+### 1. 環境の掃除
+```bash
+docker compose down -v --remove-orphans
+```
+
+### 2. 現在の状態を確認（問題のある状態）
+```bash
+# コンテナを起動
+docker compose up -d
+
+# 起動状況の確認
+docker compose ps
+```
+
+**期待する結果:**
+```
+NAME                     COMMAND                  PORTS
+infra-handson-backend    "docker-entrypoint.s…"  0.0.0.0:8000->8000/tcp
+infra-handson-database   "docker-entrypoint.s…"  5432/tcp
+infra-handson-frontend   "docker-entrypoint.s…"  0.0.0.0:3000->3000/tcp
+```
+
+### 3. ネットワーク構成の確認
+
+#### 3-1. ネットワーク一覧の確認
+```bash
+docker network ls
+```
+
+**期待する結果:**
+```
+NETWORK ID     NAME                                    DRIVER
+xxxxx          infra-handson-docker-network_frontend-network   bridge
+xxxxx          infra-handson-docker-network_backend-network    bridge
+```
+
+#### 3-2. 各ネットワークの詳細確認
+```bash
+# フロントエンドネットワークの確認
+docker network inspect infra-handson-docker-network_frontend-network
+
+# バックエンドネットワークの確認
+docker network inspect infra-handson-docker-network_backend-network
+```
+
+**注目ポイント:**
+- frontendは `frontend-network` に属している
+- backend と database は `backend-network` に属している
+- **異なるネットワークに分離されている**
+
+### 4. 通信テスト：問題を体験する
+
+#### 4-1. ブラウザからの確認
+```bash
+# フロントエンドにアクセス（成功するはず）
+open http://localhost:3000
+```
+
+**期待する結果:**
+- ✅ フロントエンド画面は表示される
+- ❌ しかし、タスク一覧でAPIエラーが表示される
+
+#### 4-2. 直接APIアクセス（成功するはず）
+```bash
+# バックエンドAPIに直接アクセス
+curl http://localhost:8000/health
+```
+
+**期待する結果:**
+```json
+{"status":"OK","message":"Task API is running"}
+```
+
+#### 4-3. コンテナ間通信の確認（失敗するはず）
+```bash
+# フロントエンドコンテナからバックエンドにアクセス
+docker compose exec frontend sh
+
+# コンテナ内で実行（失敗するはず）
+curl http://backend:8000/health
+# または
+nslookup backend
+
+# コンテナから出る
+exit
+```
+
+**期待する結果:**
+```
+curl: (6) Could not resolve host: backend
+# または
+nslookup: can't resolve 'backend': Name does not resolve
+```
+
+### 5. 問題の原因を理解する
+
+#### 5-1. 現在のdocker-compose.ymlを確認
+```bash
+cat docker-compose.yml
+```
+
+**注目ポイント:**
+```yaml
+services:
+  frontend:
+    networks:
+      - frontend-network  # ← frontendは frontend-network に属する
+
+  backend:
+    networks:
+      - backend-network   # ← backendは backend-network に属する
+
+networks:
+  frontend-network:       # ← 異なるネットワーク
+  backend-network:        # ← 異なるネットワーク
+```
+
+#### 5-2. なぜ通信できないのか？
+
+**🤔 考えてみましょう:**
+1. frontendとbackendは同じホスト上にある
+2. 両方ともポートが公開されている
+3. それでもfrontendからbackendに通信できない
+
+<details>
+<summary>答えを見る</summary>
+
+**理由: ネットワーク境界による分離**
+
+- frontendは `frontend-network` に属している
+- backendは `backend-network` に属している
+- **異なるネットワーク間では直接通信できない**
+- **名前解決（DNS）も各ネットワーク内でのみ有効**
+
+オフィスビルのアナロジー：
+- 3階の人は4階の人の内線番号を知らない
+- 直通電話をかけることができない
+- 外線（ホスト経由）を使えば通話可能
+
+</details>
+
+### 6. 解決方法を考える
+
+**🤔 どうすれば通信できるようになるでしょうか？**
+
+以下の選択肢を考えてみてください：
+
+1. **同一ネットワークに参加させる**
+2. **複数ネットワークに参加させる**
+3. **ホスト経由での通信に変更する**
+
+<details>
+<summary>解決方法1: 同一ネットワークに統一</summary>
+
+**最もシンプルな解決方法**
+
+```yaml
+services:
+  frontend:
+    networks:
+      - app-network  # ← 同じネットワークに変更
+
+  backend:
+    networks:
+      - app-network  # ← 同じネットワークに変更
+
+  database:
+    networks:
+      - app-network  # ← 同じネットワークに変更
+
+networks:
+  app-network:       # ← 単一ネットワーク
+```
+
+</details>
+
+<details>
+<summary>解決方法2: 複数ネットワークに参加</summary>
+
+**より柔軟な解決方法**
+
+```yaml
+services:
+  frontend:
+    networks:
+      - frontend-network
+      - shared-network    # ← 共通ネットワークを追加
+
+  backend:
+    networks:
+      - backend-network
+      - shared-network    # ← 共通ネットワークを追加
+
+networks:
+  frontend-network:
+  backend-network:
+  shared-network:         # ← 通信用の共通ネットワーク
+```
+
+</details>
+
+### 7. 実際に修正してみる
+
+#### 7-1. 解決方法1を試す（同一ネットワークに統一）
+
+docker-compose.ymlを以下のように修正：
+
+```yaml
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    networks:
+      - app-network  # ← 変更
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@database:5432/taskdb
+    networks:
+      - app-network  # ← 変更
+    depends_on:
+      - database
+
+  database:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=taskdb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network  # ← 変更
+
+networks:
+  app-network:       # ← 単一ネットワーク
+    driver: bridge
+
+volumes:
+  postgres_data:
+```
+
+#### 7-2. 修正を反映
+```bash
+# コンテナを再起動
+docker compose down
+docker compose up -d
+
+# ネットワーク構成の再確認
+docker network ls
+docker network inspect infra-handson-docker-network_app-network
+```
+
+#### 7-3. 修正後の動作確認
+
+**コンテナ間通信の確認:**
+```bash
+# フロントエンドコンテナからバックエンドにアクセス
+docker compose exec frontend sh
+
+# コンテナ内で実行（成功するはず）
+curl http://backend:8000/health
+nslookup backend
+
+# コンテナから出る
+exit
+```
+
+**期待する結果:**
+```json
+{"status":"OK","message":"Task API is running"}
+```
+
+**フロントエンドでの動作確認:**
+```bash
+open http://localhost:3000
+```
+
+**期待する動作:**
+- ✅ タスク一覧が正常に表示される
+- ✅ 新しいタスクを追加できる
+- ✅ APIエラーが解消される
+
+---
+
+## 🔍 確認ポイント
+
+### ✅ ネットワーク分離体験チェックリスト
+
+- [ ] 異なるネットワークに属するコンテナ間で通信できないことを確認
+- [ ] 同じホスト上でも名前解決ができないことを確認
+- [ ] ホスト経由（ポート公開）でのアクセスは可能なことを確認
+- [ ] 同一ネットワークに統一することで通信可能になることを確認
+- [ ] `docker network inspect` でネットワーク構成を確認
+
+### 🤔 理解度チェック
+
+以下の質問に答えられるか確認してください：
+
+1. **なぜ同じホスト上のコンテナ同士が通信できないのですか？**
+
+<details>
+<summary>解答を見る</summary>
+
+**ネットワーク境界による分離**
+- 異なるDockerネットワークに属するコンテナは直接通信できない
+- 各ネットワークは独立したDNS名前空間を持つ
+- 物理的には同じホストでも、論理的には分離されている
+
+**オフィスビルのアナロジー:**
+- 同じ建物でも異なるフロアの人同士は直接話せない
+- 内線番号（サービス名）も各フロア内でのみ有効
+
+</details>
+
+2. **ホスト経由でのアクセスは可能なのはなぜですか？**
+
+<details>
+<summary>解答を見る</summary>
+
+**ポート公開による外部アクセス**
+- `ports` 設定により、ホストのポートがコンテナのポートにマッピングされる
+- ブラウザやcurlはホスト経由でアクセスする
+- ネットワーク境界を越えた通信方法の一つ
+
+**オフィスビルのアナロジー:**
+- 外線電話（ホスト経由）なら異なるフロア間でも通話可能
+- 直通内線（コンテナ間通信）は同じフロア内のみ
+
+</details>
+
+3. **実務でこの知識はどう活用しますか？**
+
+<details>
+<summary>解答を見る</summary>
+
+**マイクロサービス設計:**
+- サービス間の通信境界を明確に設計
+- セキュリティ要件に応じたネットワークセグメンテーション
+
+**トラブルシューティング:**
+- 通信エラーの原因をネットワーク境界の観点で分析
+- 名前解決の問題を迅速に特定
+
+**インフラ設計:**
+- DMZ、内部ネットワークの適切な分離
+- Kubernetesのネットワークポリシー設計
+
+</details>
+
+---
+
+## 🛠️ トラブルシューティング
+
+### よくある問題と解決方法
+
+#### 問題1: ネットワーク名が長すぎて分からない
+```bash
+# プロジェクト名を含む完全なネットワーク名を確認
+docker compose config
+
+# または、部分一致で検索
+docker network ls | grep frontend
+docker network ls | grep backend
+```
+
+#### 問題2: 修正後も通信できない
+```bash
+# キャッシュされたネットワーク設定をクリア
+docker compose down -v --remove-orphans
+docker system prune -f
+docker compose up -d
+```
+
+#### 問題3: コンテナ内でcurlが使えない
+```bash
+# wgetを使用（標準搭載）
+wget -O- http://backend:8000/health
+
+# または、telnetで接続確認
+telnet backend 8000
+```
+
+---
+
+## 🎓 Step3で身につけたこと
+
+- **ネットワーク境界の概念**: 見えないが確実に存在する境界
+- **通信断の原因分析**: ネットワーク分離による問題の特定
+- **設計思考**: 意図的なネットワーク分離と統合の判断
+- **実務スキル**: マイクロサービス間通信の設計能力
+
+---
+
+## 📚 次のステップへ
+
+Step3が完了したら、次のステップに進みましょう：
+
+```bash
+# 環境の掃除
+docker compose down -v --remove-orphans
+
+# 次のステップへ
+git checkout step4-dns
+```
+
+**Step4では「名前解決」を学習します。**
+
+> なぜサービス名で通信できるのか、その仕組みを理解しましょう！
+
+---
+
+## 💡 実務への応用
+
+Step3で学んだことは実務でこのように活用できます：
+
+- **マイクロサービス設計**: 適切なネットワークセグメンテーション
+- **セキュリティ設計**: DMZと内部ネットワークの分離
+- **Kubernetes設計**: ネットワークポリシーによるPod間通信制御
+- **トラブルシューティング**: 通信断の迅速な原因特定
+
+---
+
+## 🔥 重要なメッセージ
+
+**このStep3こそが、本教材の最も重要な学習ポイントです。**
+
+> 「**同じマシン上にあるのに通信できない**」
+
+この体験を通じて、あなたは：
+- ネットワークは明示的に設計されるものだと理解した
+- 「動かない」は設定の結果だと納得した
+- 見えない境界の存在を体感した
+
+**この理解があれば、実務での複雑なネットワーク問題も構造的に分析できるようになります。**
