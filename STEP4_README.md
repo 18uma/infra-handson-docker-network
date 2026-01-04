@@ -201,10 +201,12 @@ docker compose exec database hostname -i
 
 **期待する結果:**
 ```
-172.20.0.2  # frontend
-172.20.0.3  # backend
-172.20.0.4  # database
+172.20.0.2  # frontend（例）
+172.20.0.3  # backend（例）
+172.20.0.4  # database（例）
 ```
+
+**💡 注意**: IPアドレスは動的に割り当てられるため、上記は例です。実際の実行時には異なるIPアドレスが表示される可能性があります。
 
 ### 3. 名前解決の動作確認
 
@@ -254,8 +256,10 @@ curl http://backend:8000/health
 # IPアドレス直接指定でも通信（成功するはず）
 curl http://172.20.0.3:8000/health
 
-# データベースへの接続確認
-telnet database 5432
+# データベースへの接続確認（telnetがない場合はスキップ）
+# telnet database 5432
+# または、ncコマンドで接続確認
+nc -zv database 5432
 
 # コンテナから出る
 exit
@@ -286,7 +290,7 @@ nslookup: can't resolve 'backend': Name does not resolve
 
 #### 4-2. ホストからIPアドレス直接指定（失敗するはず）
 ```bash
-# コンテナのIPアドレスを確認
+# コンテナのIPアドレスを確認（動的に割り当てられるため、実行時に異なる可能性あり）
 BACKEND_IP=$(docker compose exec backend hostname -i | tr -d '\r')
 echo "Backend IP: $BACKEND_IP"
 
@@ -294,10 +298,17 @@ echo "Backend IP: $BACKEND_IP"
 curl http://$BACKEND_IP:8000/health
 ```
 
+**💡 重要な注意:**
+- **IPアドレスは動的**: コンテナ再起動時にIPアドレスが変わる可能性があります
+- **上記のIPアドレスは例**: 実際の実行時には異なるIPアドレスが表示される可能性があります
+- **コマンドで動的取得**: 上記の `BACKEND_IP=$(...)` コマンドで現在のIPアドレスを取得してください
+
 **期待する結果:**
 ```
 curl: (7) Failed to connect to 172.20.0.3 port 8000: Connection refused
 ```
+
+**💡 注意**: 上記のIPアドレスは例です。実際のエラーメッセージでは、現在のコンテナのIPアドレスが表示されます。
 
 **💡 重要な理解:**
 - **サービス名**: ネットワーク内でのみ有効
@@ -328,13 +339,14 @@ options ndots:0
 
 # /etc/hosts
 127.0.0.1       localhost
-172.20.0.2      frontend-container-id
+::1             localhost ip6-localhost ip6-loopback
+172.20.0.2      actual-container-hash-id
 ```
 
 **💡 DNS設定の解説:**
 - **nameserver 127.0.0.11**: Docker内蔵DNSサーバー
 - **ndots:0**: ドット区切りなしの名前も検索対象
-- **hosts**: 自分自身の情報のみ記載
+- **hosts**: 自分自身の情報（実際のコンテナIDハッシュが表示される）
 
 #### 5-2. Docker内蔵DNSの動作確認
 ```bash
@@ -441,7 +453,12 @@ docker network inspect infra-handson-docker-network_app-network
 # コンテナを再起動してIPアドレスの動的割り当てを確認
 docker compose restart backend
 docker compose exec frontend nslookup backend
+
+# 現在のIPアドレスを再取得
+docker compose exec backend hostname -i
 ```
+
+**💡 重要**: DockerコンテナのIPアドレスは動的に割り当てられるため、コンテナ再起動時に変更される可能性があります。これがサービス名での通信が重要な理由です。
 
 #### 問題3: DNS応答が遅い
 ```bash
