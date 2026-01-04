@@ -154,6 +154,12 @@ docker compose up -d
 docker compose ps
 ```
 
+**💡 注意**: 初回起動時やDockerfileが更新された場合は、以下でイメージをリビルドしてください：
+```bash
+docker compose build
+docker compose up -d
+```
+
 **期待する結果:**
 ```
 NAME                     COMMAND                  PORTS
@@ -436,3 +442,14 @@ Step2で学んだことは実務でこのように活用できます：
 - **セキュリティ設計**: 最小権限の原則に基づくポート公開設計
 - **デバッグ効率化**: 視点を変えた問題の迅速な特定
 - **インフラ設計**: ネットワーク境界を意識した設計判断
+
+---
+
+## 📖 補足資料
+
+**より深く学びたい方へ:**
+
+- [ネットワークアーキテクチャ補足資料](./NETWORK_ARCHITECTURE_SUPPLEMENT.md)
+  - SSR（Server-Side Rendering）パターンとの比較
+  - Next.js SSRにおけるセキュリティ考慮事項
+  - SSRF脆弱性、環境変数漏洩、Hydration攻撃などの最新情報
