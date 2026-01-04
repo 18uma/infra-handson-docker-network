@@ -6,20 +6,20 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_API_URL=http://api:8000
     networks:
-      - app-network
+      - frontend-network
     depends_on:
       - backend
 
   backend:
     build: ./backend
-    ports:
-      - "8000:8000"
+    # ports:
+    #   - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://user:password@database:5432/taskdb
+      - DATABASE_URL=postgresql://user:password@db:5432/taskdb
     networks:
-      - app-network
+      - backend-network
     depends_on:
       - database
 
@@ -32,10 +32,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - app-network
+      - database-network
 
 networks:
-  app-network:
+  frontend-network:
+    driver: bridge
+  backend-network:
+    driver: bridge
+  database-network:
     driver: bridge
 
 volumes:
