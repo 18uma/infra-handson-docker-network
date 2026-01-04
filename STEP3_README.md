@@ -154,12 +154,7 @@
 
 > **目的**: ネットワーク境界の存在を体感し、「見えない境界」を理解する
 
-### 1. 環境の掃除
-```bash
-docker compose down -v --remove-orphans
-```
-
-### 2. 現在の状態を確認（問題のある状態）
+### 1. 環境の掃除と現在の状態を確認（問題のある状態）
 ```bash
 # 完全にクリーンな状態から開始
 docker compose down -v --remove-orphans
@@ -184,9 +179,9 @@ infra-handson-database   "docker-entrypoint.s…"  5432/tcp
 infra-handson-frontend   "docker-entrypoint.s…"  0.0.0.0:3000->3000/tcp
 ```
 
-### 3. ネットワーク構成の確認
+### 2. ネットワーク構成の確認
 
-#### 3-1. ネットワーク一覧の確認
+#### 2-1. ネットワーク一覧の確認
 ```bash
 docker network ls
 ```
@@ -198,7 +193,7 @@ xxxxx          infra-handson-docker-network_frontend-network   bridge
 xxxxx          infra-handson-docker-network_backend-network    bridge
 ```
 
-#### 3-2. 各ネットワークの詳細確認
+#### 2-2. 各ネットワークの詳細確認
 ```bash
 # フロントエンドネットワークの確認
 docker network inspect infra-handson-docker-network_frontend-network
@@ -212,9 +207,9 @@ docker network inspect infra-handson-docker-network_backend-network
 - backend と database は `backend-network` に属している
 - **異なるネットワークに分離されている**
 
-### 4. 通信テスト：問題を体験する
+### 3. 通信テスト：問題を体験する
 
-#### 4-1. ブラウザからの確認
+#### 3-1. ブラウザからの確認
 ```bash
 # フロントエンドにアクセス（成功するはず）
 open http://localhost:3000
@@ -224,7 +219,7 @@ open http://localhost:3000
 - ✅ フロントエンド画面は表示される
 - ❌ しかし、タスク一覧でAPIエラーが表示される
 
-#### 4-2. 直接APIアクセス（成功するはず）
+#### 3-2. 直接APIアクセス（成功するはず）
 ```bash
 # バックエンドAPIに直接アクセス
 curl http://localhost:8000/health
@@ -235,7 +230,7 @@ curl http://localhost:8000/health
 {"status":"OK","message":"Task API is running"}
 ```
 
-#### 4-3. コンテナ間通信の確認（失敗するはず）
+#### 3-3. コンテナ間通信の確認（失敗するはず）
 ```bash
 # フロントエンドコンテナからバックエンドにアクセス
 docker compose exec frontend sh
@@ -256,9 +251,9 @@ curl: (6) Could not resolve host: backend
 nslookup: can't resolve 'backend': Name does not resolve
 ```
 
-### 5. 問題の原因を理解する
+### 4. 問題の原因を理解する
 
-#### 5-1. 現在のdocker-compose.ymlを確認
+#### 4-1. 現在のdocker-compose.ymlを確認
 ```bash
 cat docker-compose.yml
 ```
@@ -279,7 +274,7 @@ networks:
   backend-network:        # ← 異なるネットワーク
 ```
 
-#### 5-2. なぜ通信できないのか？
+#### 4-2. なぜ通信できないのか？
 
 **🤔 考えてみましょう:**
 1. frontendとbackendは同じホスト上にある
@@ -303,7 +298,7 @@ networks:
 
 </details>
 
-### 6. 解決方法を考える
+### 5. 解決方法を考える
 
 **🤔 どうすれば通信できるようになるでしょうか？**
 
@@ -363,9 +358,9 @@ networks:
 
 </details>
 
-### 7. 実際に修正してみる
+### 6. 実際に修正してみる
 
-#### 7-1. 解決方法1を試す（同一ネットワークに統一）
+#### 6-1. 解決方法1を試す（同一ネットワークに統一）
 
 docker-compose.ymlを以下のように修正：
 
@@ -414,7 +409,7 @@ volumes:
   postgres_data:
 ```
 
-#### 7-2. 修正を反映
+#### 6-2. 修正を反映
 ```bash
 # コンテナを再起動
 docker compose down
@@ -425,7 +420,7 @@ docker network ls
 docker network inspect infra-handson-docker-network_app-network
 ```
 
-#### 7-3. 修正後の動作確認
+#### 6-3. 修正後の動作確認
 
 **コンテナ間通信の確認:**
 ```bash
