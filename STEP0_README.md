@@ -314,7 +314,7 @@ docker compose up backend frontend
 Step0が完了したら、次のステップに進みましょう：
 
 ```bash
-# 環境の掃除
+# 環境の掃除（このプロジェクトのリソースのみ削除、他の環境には影響なし）
  docker compose down -v --remove-orphans
 
 # 次のステップへ
