@@ -163,7 +163,6 @@ docker compose down -v --remove-orphans
 ```bash
 # 完全にクリーンな状態から開始
 docker compose down -v --remove-orphans
-docker system prune -f
 
 # イメージを強制リビルド
 docker compose build --no-cache
@@ -543,7 +542,7 @@ docker network ls | grep backend
 ```bash
 # キャッシュされたネットワーク設定をクリア
 docker compose down -v --remove-orphans
-docker system prune -f
+docker compose build --no-cache
 docker compose up -d
 ```
 
